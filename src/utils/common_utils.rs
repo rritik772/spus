@@ -14,6 +14,7 @@ pub fn check_envs() -> std::io::Result<()> {
         .collect();
 
     if !missing_vars.is_empty() {
+        tracing::error!("Could not find some envs. E {:?}", missing_vars);
         return Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
             format!("{:?} are missing env variables.", missing_vars)
