@@ -1,3 +1,5 @@
+mod db;
+mod schema;
 mod utils;
 
 use axum::{routing::get, Json, Router};
@@ -46,9 +48,19 @@ async fn main() -> std::io::Result<()> {
 
     utils::common_utils::check_envs()?;
 
+    let app_state = utils::config::AppState::new().map_err(|e| {
+        tracing::error!("Cannot get app state. E {:?}", e);
+
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Cannot make Application State.",
+        )
+    })?;
+
     let app = Router::new()
         .route("/", get(root))
-        .route("/health", get(health_check));
+        .route("/health", get(health_check))
+        .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(format!(
         "{}:{}",
