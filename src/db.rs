@@ -1,4 +1,4 @@
-use diesel::{r2d2::{self, ConnectionManager, Pool, PooledConnection}, PgConnection};
+use diesel::{r2d2::{ConnectionManager, Pool, PooledConnection}, PgConnection};
 use thiserror::Error;
 
 use crate::utils::config::AppState;
@@ -20,7 +20,6 @@ pub fn create_pool() -> Result<Pool<ConnectionManager<PgConnection>>, DatabaseEr
 
     Pool::builder()
         .max_size(10)
-        .test_on_check_out(true)
         .build(manager)
         .map_err(|_| DatabaseError::PoolConnectionError)
 }
