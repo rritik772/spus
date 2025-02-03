@@ -68,7 +68,8 @@ async fn db_health(
     skip(app_state)
     fields(
         request_id = %nanoid!(),
-        fn_type = %ROUTE_FN_TYPE
+        fn_type = %ROUTE_FN_TYPE,
+        url = %req.uri().to_string()
     )
 )]
 async fn short_url(
@@ -105,7 +106,8 @@ async fn short_url(
     skip(app_state)
     fields(
         request_id = %nanoid!(),
-        fn_type = %ROUTE_FN_TYPE
+        fn_type = %ROUTE_FN_TYPE,
+        url = %url
     )
 )]
 async fn long_url(

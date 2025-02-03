@@ -53,7 +53,7 @@ impl Url {
             fn_type = %URL_FN_TYPE
         )
     )]
-    pub fn get_url_by_hash(conn: &mut DbConnection, _hash: i64) -> Option<Self> {
+    pub fn get_url_by_hash(conn: &mut DbConnection, _hash: i64) -> Option<Vec<Self>> {
         let urls = url
             .filter(hash.eq(_hash))
             .limit(1)
@@ -61,7 +61,7 @@ impl Url {
             .load(conn);
 
         match urls {
-            Ok(v) => v.into_iter().next(),
+            Ok(v) => Some(v),
             Err(e) => {
                 tracing::error!("Error while getting url with short_url: {}, E: {:?}", _hash, e);
                 None
