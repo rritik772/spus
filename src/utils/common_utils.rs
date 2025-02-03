@@ -1,4 +1,3 @@
-
 #[tracing::instrument(
     name = "check_env"
 )]

@@ -1,12 +1,21 @@
 mod db;
 mod schema;
 mod utils;
+mod service;
 
+use std::collections::HashMap;
+use axum::extract::{Path, Query, Request, State};
+use axum::http::StatusCode;
+use axum::response::Redirect;
 use axum::{routing::get, Json, Router};
 use nanoid::nanoid;
 use serde_json::json;
 use serde_json::Value;
 use tracing_subscriber::layer::SubscriberExt;
+
+use utils::config::AppState;
+use utils::response::{generate_failure_response, generate_success_response};
+use service::short_url;
 
 const ROUTE_FN_TYPE: &str = "route";
 
@@ -27,6 +36,87 @@ async fn root() -> &'static str {
 )]
 async fn health_check() -> Json<Value> {
     Json(json!({ "status": "Ok" }))
+}
+
+#[tracing::instrument(
+    name = "db-health",
+    fields(
+        request_id = %nanoid!(),
+        fn_type = %ROUTE_FN_TYPE
+    ),
+    skip(app_state)
+)]
+async fn db_health(
+    State(app_state): State<utils::config::AppState>,
+    req: Request
+) -> (StatusCode, Json<Value>) {
+    match db::get_connection(&app_state) {
+        Some(_) => generate_success_response(
+            json!({ "status": "Ok" }), 
+            req.uri().to_string(), 
+            None, None
+        ),
+        None => generate_failure_response(
+            json!({"status": "failed"}), 
+            req.uri().to_string(), 
+            Some(StatusCode::NOT_FOUND), 
+            None, None
+        )
+    }
+}
+
+#[tracing::instrument(
+    name = "short-url",
+    skip(app_state)
+    fields(
+        request_id = %nanoid!(),
+        fn_type = %ROUTE_FN_TYPE
+    )
+)]
+async fn short_url(
+    State(app_state): State<utils::config::AppState>,
+    Query(param): Query<HashMap<String, String>>,
+    req: Request
+) -> (StatusCode, Json<Value>) {
+    let Some(url) = param.get("url") else {
+        tracing::error!("Url not provided in the param.");
+        return generate_failure_response(json!({ "msg": "url param not provided." }), req.uri().to_string(), Some(StatusCode::NOT_ACCEPTABLE), None, Some(true)) 
+    };
+
+    let Some(mut pool) = db::get_connection(&app_state) else {
+        return generate_failure_response(json!({}), req.uri().to_string(), None, None, None);
+    };
+
+    service::short_url::short_url(&mut pool, url.into())
+    .map_or_else(
+        || generate_failure_response(json!({}), req.uri().to_string(), None, None, None),
+        |resp| generate_success_response(json!({"data": resp}), req.uri().to_string(), None, None)
+    )
+}
+
+#[tracing::instrument(
+    name = "long-url",
+    skip(app_state)
+    fields(
+        request_id = %nanoid!(),
+        fn_type = %ROUTE_FN_TYPE
+    )
+)]
+async fn long_url(
+    State(app_state): State<utils::config::AppState>,
+    Path(url): Path<String>
+) ->  Redirect {
+    let Some(mut pool) = db::get_connection(&app_state) else {
+        return Redirect::permanent("/");
+    };
+
+    if let Some(url_info) = db::url::Url::get_url(&mut pool, &url) {
+        tracing::info!("For {:?}, redirecting to {:?}", url, url_info.original_url);
+        Redirect::permanent(&url_info.original_url)
+    } else {
+        tracing::info!("For {}, redirecting url not found", url);
+        Redirect::permanent("/")
+    }
 }
 
 #[tokio::main]
@@ -60,6 +150,9 @@ async fn main() -> std::io::Result<()> {
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
+        .route("/db-health", get(db_health))
+        .route("/short", get(short_url))
+        .route("/{url}", get(long_url))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(format!(
