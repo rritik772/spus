@@ -5,6 +5,8 @@ use crate::utils::config::AppState;
 
 pub mod url;
 
+pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
+
 #[derive(Error, Debug)]
 pub enum DatabaseError {
     #[error("DATABASE_URL env not found")]
@@ -24,7 +26,7 @@ pub fn create_pool() -> Result<Pool<ConnectionManager<PgConnection>>, DatabaseEr
         .map_err(|_| DatabaseError::PoolConnectionError)
 }
 
-pub fn get_connection(app_state: &AppState) -> Option<PooledConnection<ConnectionManager<PgConnection>>> {
+pub fn get_connection(app_state: &AppState) -> Option<DbConnection> {
     let pool_lock = app_state.pool.lock().ok()?;
     pool_lock.get().map_err(|e| {
         tracing::error!("Error while getting connection from pool. E: {:?}", e);
