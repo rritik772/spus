@@ -16,6 +16,7 @@ pub struct Url {
     pub created_on: i64,
     pub expiries_at: i64,
     pub redirection_count: i32,
+    pub hash: i64,
 }
 
 
@@ -45,6 +46,30 @@ impl Url {
     }
 
     #[tracing::instrument(
+        name = "get-url",
+        skip(conn),
+        fields(
+            short_url = %_hash,
+            fn_type = %URL_FN_TYPE
+        )
+    )]
+    pub fn get_url_by_hash(conn: &mut DbConnection, _hash: i64) -> Option<Vec<Self>> {
+        let urls = url
+            .filter(hash.eq(_hash))
+            .limit(1)
+            .select(Url::as_select())
+            .load(conn);
+
+        match urls {
+            Ok(v) => Some(v),
+            Err(e) => {
+                tracing::error!("Error while getting url with short_url: {}, E: {:?}", _hash, e);
+                None
+            }
+        }
+    }
+
+    #[tracing::instrument(
         name = "save-url",
         skip(conn),
         fields(fn_type = %URL_FN_TYPE)
@@ -55,7 +80,8 @@ impl Url {
             short_url.eq(&self.short_url),
             created_on.eq(&self.created_on),
             expiries_at.eq(&self.expiries_at),
-            redirection_count.eq(&self.redirection_count)
+            redirection_count.eq(&self.redirection_count),
+            hash.eq(&self.hash)
         );
 
         let urls = insert_into(url)

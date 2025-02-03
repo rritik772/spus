@@ -13,6 +13,8 @@ pub fn short_url(pool: &mut DbConnection, url: String) -> Option<Url> {
         return None;
     };
 
+    let hash = murmurhash32::murmurhash3(random_id.as_bytes()) as i64;
+
     let now = chrono::Utc::now();
     let expires_at = now + chrono::Duration::days(1);
 
@@ -22,7 +24,8 @@ pub fn short_url(pool: &mut DbConnection, url: String) -> Option<Url> {
         created_on: now.timestamp(),
         expiries_at: expires_at.timestamp(),
         redirection_count: 0,
-        id: 0
+        id: 0,
+        hash
     };
 
     Url::save_url(url, pool)

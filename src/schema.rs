@@ -10,5 +10,6 @@ diesel::table! {
         created_on -> Int8,
         expiries_at -> Int8,
         redirection_count -> Int4,
+        hash -> Int8,
     }
 }
