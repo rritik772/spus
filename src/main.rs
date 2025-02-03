@@ -13,9 +13,7 @@ use serde_json::json;
 use serde_json::Value;
 use tracing_subscriber::layer::SubscriberExt;
 
-use utils::config::AppState;
 use utils::response::{generate_failure_response, generate_success_response};
-use service::short_url;
 
 const ROUTE_FN_TYPE: &str = "route";
 
@@ -81,6 +79,14 @@ async fn short_url(
     let Some(url) = param.get("url") else {
         tracing::error!("Url not provided in the param.");
         return generate_failure_response(json!({ "msg": "url param not provided." }), req.uri().to_string(), Some(StatusCode::NOT_ACCEPTABLE), None, Some(true)) 
+    };
+
+    let Ok(_) = url::Url::parse(url) else {
+        tracing::error!("Url {} does not look like url.", url);
+        return generate_failure_response(
+            json!({ "msg": format!("'{}' does not look like url.", url) }), 
+            req.uri().to_string(), Some(StatusCode::NOT_ACCEPTABLE), None, Some(true)
+        ) 
     };
 
     let Some(mut pool) = db::get_connection(&app_state) else {
