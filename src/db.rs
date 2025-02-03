@@ -32,7 +32,3 @@ pub fn get_connection(app_state: &AppState) -> Option<DbConnection> {
         tracing::error!("Error while getting connection from pool. E: {:?}", e);
     }).ok()
 }
-
-pub fn check_connection() {
-
-}
