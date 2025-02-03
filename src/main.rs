@@ -94,10 +94,10 @@ async fn short_url(
     };
 
     service::short_url::short_url(&mut pool, url.into())
-    .map_or_else(
-        || generate_failure_response(json!({}), req.uri().to_string(), None, None, None),
-        |resp| generate_success_response(json!({"data": resp}), req.uri().to_string(), None, None)
-    )
+        .map_or_else(
+            || generate_failure_response(json!({}), req.uri().to_string(), None, None, None),
+            |resp| generate_success_response(json!({"data": resp}), req.uri().to_string(), None, None)
+        )
 }
 
 #[tracing::instrument(
@@ -116,13 +116,11 @@ async fn long_url(
         return Redirect::permanent("/");
     };
 
-    if let Some(url_info) = db::url::Url::get_url(&mut pool, &url) {
-        tracing::info!("For {:?}, redirecting to {:?}", url, url_info.original_url);
-        Redirect::permanent(&url_info.original_url)
-    } else {
-        tracing::info!("For {}, redirecting url not found", url);
-        Redirect::permanent("/")
-    }
+    service::long_url::long_url(&mut pool, url.into())
+        .map_or_else(
+            || Redirect::permanent("/"),
+            |resp| Redirect::permanent(&resp.original_url)
+        )
 }
 
 #[tokio::main]
